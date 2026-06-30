@@ -1,0 +1,107 @@
+const db = require('../config/db');
+
+// View all employees & handle search queries
+exports.getAllEmployees = async (req, res) => {
+    try {
+        const { search } = req.query;
+        let query = `
+            SELECT e.*, d.name as department_name 
+            FROM employees e 
+            LEFT JOIN departments d ON e.department_id = d.id
+        `;
+        let values = [];
+
+        if (search) {
+            query += ` WHERE e.first_name ILIKE $1 OR e.last_name ILIKE $1 OR e.email ILIKE $1`;
+            values.push(`%${search}%`);
+        }
+        
+        query += ` ORDER BY e.id DESC`;
+
+        const employees = await db.query(query, values);
+        const departments = await db.query('SELECT * FROM departments ORDER BY name ASC');
+        
+        res.render('employees', { 
+            employees: employees.rows, 
+            departments: departments.rows, 
+            search: search || '', 
+            error: null 
+        });
+    } catch (err) {
+        res.status(500).send('Database Fetch Error');
+    }
+};
+
+// Add Employee with server validation
+exports.createEmployee = async (req, res) => {
+    const { first_name, last_name, email, phone, department_id } = req.body;
+
+    // Field Validation
+    if (!first_name || !last_name || !email) {
+        const employees = await db.query('SELECT e.*, d.name as department_name FROM employees e LEFT JOIN departments d ON e.department_id = d.id');
+        const departments = await db.query('SELECT * FROM departments');
+        return res.render('employees', { 
+            employees: employees.rows, 
+            departments: departments.rows, 
+            search: '', 
+            error: 'First Name, Last Name, and Email are required fields.' 
+        });
+    }
+
+    try {
+        await db.query(
+            'INSERT INTO employees (first_name, last_name, email, phone, department_id) VALUES ($1, $2, $3, $4, $5)',
+            [first_name, last_name, email, phone, department_id ? parseInt(department_id) : null]
+        );
+        res.redirect('/employees');
+    } catch (err) {
+        res.status(500).send('Error saving employee. Email might already exist.');
+    }
+};
+
+// Get Single Employee Data for Editing
+exports.getEditEmployeePage = async (req, res) => {
+    try {
+        const employee = await db.query('SELECT * FROM employees WHERE id = $1', [req.params.id]);
+        const departments = await db.query('SELECT * FROM departments');
+        if (employee.rows.length === 0) return res.status(404).send('Employee not found');
+        
+        res.render('edit-employee', { employee: employee.rows[0], departments: departments.rows, error: null });
+    } catch (err) {
+        res.status(500).send('Server Error');
+    }
+};
+
+// Update Employee
+exports.updateEmployee = async (req, res) => {
+    const { first_name, last_name, email, phone, department_id } = req.body;
+    const { id } = req.params;
+
+    if (!first_name || !last_name || !email) {
+        return res.render('edit-employee', { 
+            employee: { id, first_name, last_name, email, phone, department_id }, 
+            departments: (await db.query('SELECT * FROM departments')).rows, 
+            error: 'Required fields missing.' 
+        });
+    }
+
+    try {
+        await db.query(
+            'UPDATE employees SET first_name=$1, last_name=$2, email=$3, phone=$4, department_id=$5 WHERE id=$6',
+            [first_name, last_name, email, phone, department_id ? parseInt(department_id) : null, id]
+        );
+        res.redirect('/employees');
+    } catch (err) {
+        res.status(500).send('Update Failed.');
+    }
+};
+
+// Delete Employee
+exports.deleteEmployee = async (req, res) => {
+    try {
+        await db.query('DELETE FROM employees WHERE id = $1', [req.params.id]);
+        res.redirect('/employees');
+    } catch (err) {
+        res.status(500).send('Deletion Failed.');
+    }
+};
