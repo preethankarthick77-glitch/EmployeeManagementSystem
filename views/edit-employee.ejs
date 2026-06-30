@@ -1,0 +1,39 @@
+<%- include('partials/header') %>
+<div class="container style-container" style="max-width: 500px;">
+    <div class="card card-body shadow">
+        <h4>Modify Employee Details</h4>
+        <% if (error) { %> <div class="alert alert-danger"><%= error %></div> <% } %>
+        <form action="/employees/edit/<%= employee.id %>" method="POST">
+            <div class="mb-3">
+                <label>First Name</label>
+                <input type="text" name="first_name" value="<%= employee.first_name %>" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label>Last Name</label>
+                <input type="text" name="last_name" value="<%= employee.last_name %>" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label>Email Address</label>
+                <input type="email" name="email" value="<%= employee.email %>" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label>Phone Line</label>
+                <input type="text" name="phone" value="<%= employee.phone %>" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label>Assigned Department</label>
+                <select name="department_id" class="form-select">
+                    <option value="">None</option>
+                    <% departments.forEach(dept => { %>
+                        <option value="<%= dept.id %>" <%= employee.department_id == dept.id ? 'selected' : '' %>><%= dept.name %></option>
+                    <% }) %>
+                </select>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100">Update Profile</button>
+                <a href="/employees" class="btn btn-light w-100">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+<%- include('partials/footer') %>
